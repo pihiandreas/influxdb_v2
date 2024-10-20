@@ -50,7 +50,7 @@ CONF_IMPORTS = "imports"
 DEFAULT_DATABASE = "home_assistant"
 DEFAULT_HOST_V2 = "us-west-2-1.aws.cloud2.influxdata.com"
 DEFAULT_SSL_V2 = True
-DEFAULT_BUCKET = "Home Assistant"
+#DEFAULT_BUCKET = "Home Assistant"
 DEFAULT_VERIFY_SSL = True
 DEFAULT_API_VERSION = "1"
 DEFAULT_GROUP_FUNCTION = "mean"
@@ -70,7 +70,7 @@ INFLUX_CONF_VALUE_V2 = "_value"
 INFLUX_CONF_ORG = "org"
 
 EVENT_NEW_STATE = "new_state"
-DOMAIN = "influxdb"
+DOMAIN = "influxdb_v2"
 API_VERSION_2 = "2"
 TIMEOUT = 10  # seconds
 RETRY_DELAY = 20
@@ -104,10 +104,10 @@ CLIENT_ERROR_V1 = (
     "Please check that the database, username and password are correct and "
     "that the specified user has the correct permissions set."
 )
-NO_BUCKET_ERROR = (
-    "InfluxDB bucket '%s' cannot be found. "
-    "Check the name is correct and the token has access to it."
-)
+#NO_BUCKET_ERROR = (
+#    "InfluxDB bucket '%s' cannot be found. "
+#    "Check the name is correct and the token has access to it."
+#)
 NO_DATABASE_ERROR = (
     "InfluxDB database '%s' cannot be found. "
     "Check the name is correct and the user has access to it."
@@ -150,5 +150,6 @@ COMPONENT_CONFIG_SCHEMA_CONNECTION = {
     # Connection config for V2 API only.
     vol.Inclusive(CONF_TOKEN, "v2_authentication"): cv.string,
     vol.Inclusive(CONF_ORG, "v2_authentication"): cv.string,
-    vol.Optional(CONF_BUCKET, default=DEFAULT_BUCKET): cv.string,
+#    vol.Optional(CONF_BUCKET, default=DEFAULT_BUCKET): cv.string,
+    vol.Optional(CONF_BUCKET): cv.string,
 }
