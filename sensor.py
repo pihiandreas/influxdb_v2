@@ -27,6 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import Throttle
+import homeassistant.util.dt as dt_util
 
 from . import create_influx_url, get_influx_connection, validate_version_specific_config
 from .const import (
@@ -50,12 +51,12 @@ from .const import (
     DEFAULT_GROUP_FUNCTION,
     DEFAULT_RANGE_START,
     DEFAULT_RANGE_STOP,
-    INFLUX_CONF_VALUE,
+    # INFLUX_CONF_VALUE,
     INFLUX_CONF_VALUE_V2,
+    INFLUX_CONF_TIME_V2,
     LANGUAGE_FLUX,
     LANGUAGE_INFLUXQL,
     MIN_TIME_BETWEEN_UPDATES,
-#    NO_BUCKET_ERROR,
     NO_DATABASE_ERROR,
     QUERY_MULTIPLE_RESULTS_MESSAGE,
     QUERY_NO_RESULTS_MESSAGE,
@@ -64,6 +65,7 @@ from .const import (
     RENDERING_WHERE_ERROR_MESSAGE,
     RENDERING_WHERE_MESSAGE,
     RUNNING_QUERY_MESSAGE,
+    QUERY_MULTIROW_WITHOUT_MEASUREMENT_MESSAGE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -173,10 +175,6 @@ def setup_platform(
     entities = []
     if CONF_QUERIES_FLUX in config:
         for query in config[CONF_QUERIES_FLUX]:
-#            if query[CONF_BUCKET] in influx.data_repositories:
-#                entities.append(InfluxSensor(hass, influx, query))
-#            else:
-#                _LOGGER.error(NO_BUCKET_ERROR, query[CONF_BUCKET])
             entities.append(InfluxSensor(hass, influx, query))
     else:
         for query in config[CONF_QUERIES]:
@@ -201,6 +199,7 @@ class InfluxSensor(SensorEntity):
         self._state = None
         self._hass = hass
         self._attr_unique_id = query.get(CONF_UNIQUE_ID)
+        self._attributes = {}
 
         if query[CONF_LANGUAGE] == LANGUAGE_FLUX:
             self.data = InfluxFluxSensorData(
@@ -213,20 +212,15 @@ class InfluxSensor(SensorEntity):
                 query.get(CONF_GROUP_FUNCTION),
             )
 
-        else:
-            self.data = InfluxQLSensorData(
-                influx,
-                query.get(CONF_DB_NAME),
-                query.get(CONF_GROUP_FUNCTION),
-                query.get(CONF_FIELD),
-                query.get(CONF_MEASUREMENT_NAME),
-                query.get(CONF_WHERE),
-            )
-
     @property
     def name(self):
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Return attributes for the sensor."""
+        return self._attributes
 
     @property
     def native_value(self):
@@ -243,12 +237,15 @@ class InfluxSensor(SensorEntity):
         self.data.update()
         if (value := self.data.value) is None:
             value = None
+        if (attr := self.data.attr) is None:
+            attr = {}
         if self._value_template is not None:
             value = self._value_template.render_with_possible_json_value(
                 str(value), None
             )
 
         self._state = value
+        self._attributes = attr
 
 
 class InfluxFluxSensorData:
@@ -265,22 +262,12 @@ class InfluxFluxSensorData:
         self.group = group
         self.value = None
         self.full_query = None
+        self.attr = {}
 
-#        self.query_prefix = (
-#            f'from(bucket:"{bucket}") |> range(start: {range_start}, stop:'
-#            f" {range_stop}) |>"
-#        )
-#        if imports is not None:
-#            for i in imports:
-#                self.query_prefix = f'import "{i}" {self.query_prefix}'
-
-#        if group is None:
-#            self.query_postfix = DEFAULT_FUNCTION_FLUX
         if bucket is None:
             self.query_prefix = ""
             self.query_postfix = ""
         else:
-#            self.query_postfix = f'|> {group}(column: "{INFLUX_CONF_VALUE_V2}")'
             self.query_prefix = f'from(bucket:"{bucket}") |> range(start: {range_start}, stop: {range_stop}) |>'
             if imports is not None:
                 for i in imports:
@@ -290,7 +277,6 @@ class InfluxFluxSensorData:
                 self.query_postfix = DEFAULT_FUNCTION_FLUX
             else:
                 self.query_postfix = f'|> {group}(column: "{INFLUX_CONF_VALUE_V2}")'
-
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
@@ -317,53 +303,27 @@ class InfluxFluxSensorData:
             _LOGGER.warning(QUERY_NO_RESULTS_MESSAGE, self.full_query)
             self.value = None
         else:
-            if len(tables) > 1 or len(tables[0].records) > 1:
-                _LOGGER.warning(QUERY_MULTIPLE_RESULTS_MESSAGE, self.full_query)
-            self.value = tables[0].records[0].values[INFLUX_CONF_VALUE_V2]
-
-
-class InfluxQLSensorData:
-    """Class for handling the data retrieval with v1 API."""
-
-    def __init__(self, influx, db_name, group, field, measurement, where):
-        """Initialize the data object."""
-        self.influx = influx
-        self.db_name = db_name
-        self.group = group
-        self.field = field
-        self.measurement = measurement
-        self.where = where
-        self.value = None
-        self.query = None
-
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
-        """Get the latest data with a shell command."""
-        _LOGGER.debug(RENDERING_WHERE_MESSAGE, self.where)
-        try:
-            where_clause = self.where.render(parse_result=False)
-        except TemplateError as ex:
-            _LOGGER.error(RENDERING_WHERE_ERROR_MESSAGE, ex)
-            return
-
-        self.query = (
-            f"select {self.group}({self.field}) as {INFLUX_CONF_VALUE} from"  # noqa: S608
-            f" {self.measurement} where {where_clause}"
-        )
-
-        _LOGGER.debug(RUNNING_QUERY_MESSAGE, self.query)
-
-        try:
-            points = self.influx.query(self.query, self.db_name)
-        except (ConnectionError, ValueError) as exc:
-            _LOGGER.error(exc)
-            self.value = None
-            return
-
-        if not points:
-            _LOGGER.warning(QUERY_NO_RESULTS_MESSAGE, self.query)
-            self.value = None
-        else:
-            if len(points) > 1:
-                _LOGGER.warning(QUERY_MULTIPLE_RESULTS_MESSAGE, self.query)
-            self.value = points[0].get(INFLUX_CONF_VALUE)
+            if len(tables) == 1 and len(tables[0].records) == 1:
+                # _LOGGER.warning("Got single table, single row")
+                self.value = tables[0].records[0].values[INFLUX_CONF_VALUE_V2]
+            else:
+                attrs = {}
+                for t in tables:
+                    if len(t.records) == 1:
+                        self.value = t.records[0].values[INFLUX_CONF_VALUE_V2] # if single record, set it to value
+                    elif len(t.records) > 1:
+                        results = []
+                        for record in t.records:
+                            item = {
+                                "time": dt_util.as_utc(record.get_time()).timestamp(),
+                                "value": record.values[INFLUX_CONF_VALUE_V2],
+                            }
+                            results.append(item)
+                        meas = record.get_measurement()
+                        if meas is None:
+                            _LOGGER.warning(QUERY_MULTIROW_WITHOUT_MEASUREMENT_MESSAGE)
+                            meas = "_table"
+                        attrs[meas] = results
+                    else:
+                        self.value = None
+                self.attr = attrs

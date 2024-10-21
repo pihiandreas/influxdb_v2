@@ -96,7 +96,7 @@ from .const import (
     RETRY_DELAY,
     RETRY_INTERVAL,
     RETRY_MESSAGE,
-    TEST_QUERY_V1,
+    # TEST_QUERY_V1,
     TEST_QUERY_V2,
     TIMEOUT,
     WRITE_ERROR,
@@ -404,79 +404,6 @@ def get_influx_connection(  # noqa: C901
 
         return InfluxClient(buckets, write_v2, query_v2, close_v2)
 
-    # # Else it's a V1 client
-    # if CONF_SSL_CA_CERT in conf and conf[CONF_VERIFY_SSL]:
-    #     kwargs[CONF_VERIFY_SSL] = conf[CONF_SSL_CA_CERT]
-    # else:
-    #     kwargs[CONF_VERIFY_SSL] = conf[CONF_VERIFY_SSL]
-
-    # if CONF_DB_NAME in conf:
-    #     kwargs[CONF_DB_NAME] = conf[CONF_DB_NAME]
-
-    # if CONF_USERNAME in conf:
-    #     kwargs[CONF_USERNAME] = conf[CONF_USERNAME]
-
-    # if CONF_PASSWORD in conf:
-    #     kwargs[CONF_PASSWORD] = conf[CONF_PASSWORD]
-
-    # if CONF_HOST in conf:
-    #     kwargs[CONF_HOST] = conf[CONF_HOST]
-
-    # if CONF_PATH in conf:
-    #     kwargs[CONF_PATH] = conf[CONF_PATH]
-
-    # if CONF_PORT in conf:
-    #     kwargs[CONF_PORT] = conf[CONF_PORT]
-
-    # if CONF_SSL in conf:
-    #     kwargs[CONF_SSL] = conf[CONF_SSL]
-
-    # influx = InfluxDBClient(**kwargs)
-
-    # def write_v1(json):
-    #     """Write data to V1 influx."""
-    #     try:
-    #         influx.write_points(json, time_precision=precision)
-    #     except (
-    #         requests.exceptions.RequestException,
-    #         exceptions.InfluxDBServerError,
-    #         OSError,
-    #     ) as exc:
-    #         raise ConnectionError(CONNECTION_ERROR % exc) from exc
-    #     except exceptions.InfluxDBClientError as exc:
-    #         if exc.code == CODE_INVALID_INPUTS:
-    #             raise ValueError(WRITE_ERROR % (json, exc)) from exc
-    #         raise ConnectionError(CLIENT_ERROR_V1 % exc) from exc
-
-    # def query_v1(query, database=None):
-    #     """Query V1 influx."""
-    #     try:
-    #         return list(influx.query(query, database=database).get_points())
-    #     except (
-    #         requests.exceptions.RequestException,
-    #         exceptions.InfluxDBServerError,
-    #         OSError,
-    #     ) as exc:
-    #         raise ConnectionError(CONNECTION_ERROR % exc) from exc
-    #     except exceptions.InfluxDBClientError as exc:
-    #         if exc.code == CODE_INVALID_INPUTS:
-    #             raise ValueError(QUERY_ERROR % (query, exc)) from exc
-    #         raise ConnectionError(CLIENT_ERROR_V1 % exc) from exc
-
-    # def close_v1():
-    #     """Close the V1 Influx client."""
-    #     influx.close()
-
-    # databases = []
-    # if test_write:
-    #     write_v1([])
-
-    # if test_read:
-    #     databases = [db["name"] for db in query_v1(TEST_QUERY_V1)]
-
-    # return InfluxClient(databases, write_v1, query_v1, close_v1)
-
-
 def _retry_setup(hass: HomeAssistant, config: ConfigType) -> None:
     setup(hass, config)
 
@@ -507,7 +434,6 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, shutdown)
 
     return True
-
 
 class InfluxThread(threading.Thread):
     """A threaded event handler class."""

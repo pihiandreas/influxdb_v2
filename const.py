@@ -67,6 +67,7 @@ INFLUX_CONF_FIELDS = "fields"
 INFLUX_CONF_STATE = "state"
 INFLUX_CONF_VALUE = "value"
 INFLUX_CONF_VALUE_V2 = "_value"
+INFLUX_CONF_TIME_V2 = "_time"
 INFLUX_CONF_ORG = "org"
 
 EVENT_NEW_STATE = "new_state"
@@ -104,10 +105,6 @@ CLIENT_ERROR_V1 = (
     "Please check that the database, username and password are correct and "
     "that the specified user has the correct permissions set."
 )
-#NO_BUCKET_ERROR = (
-#    "InfluxDB bucket '%s' cannot be found. "
-#    "Check the name is correct and the token has access to it."
-#)
 NO_DATABASE_ERROR = (
     "InfluxDB database '%s' cannot be found. "
     "Check the name is correct and the user has access to it."
@@ -129,6 +126,7 @@ RENDERING_QUERY_MESSAGE = "Rendering query: %s."
 RENDERING_QUERY_ERROR_MESSAGE = "Could not render query template: %s."
 RENDERING_WHERE_MESSAGE = "Rendering where: %s."
 RENDERING_WHERE_ERROR_MESSAGE = "Could not render where template: %s."
+QUERY_MULTIROW_WITHOUT_MEASUREMENT_MESSAGE = "No _measurement found in result, falling back to state_attribute name '_table'" 
 
 COMPONENT_CONFIG_SCHEMA_CONNECTION = {
     # Connection config for V1 and V2 APIs.
